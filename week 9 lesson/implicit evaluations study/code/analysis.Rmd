@@ -299,7 +299,6 @@ Label points using ggrepel: https://cran.r-project.org/web/packages/ggrepel/vign
 
 ```{r}
 
-install.packages("ggrepel")
 library(ggrepel)
 
 p1 <- ggplot(data_processed_after_exclusions, 
@@ -346,6 +345,49 @@ cor.test(data_processed_after_exclusions$AMP_score, data_processed_after_exclusi
 
 ```{r}
 
+library(ggrain)
+library(ggplot2)
+library(ggridges)
+library(RColorBrewer)
+
+#violin plot
+
+p4 <- subset(data_processed_after_exclusions, gender %in% c("female", "male"))
+
+p5 <- ggplot(p4, aes(x = gender, y = mean_evaluation, fill = gender)) +
+  geom_violin(color = "white", alpha = 0.8) +
+  xlab("Gender") +
+  ylab("Self-reported evaluations") +
+  ggtitle("Self-reported evaluations by gender") +
+  scale_fill_brewer(palette = "Set2", name = "Gender") +
+  theme_classic()
+p5
+
+#raincloud plot
+p6 <- ggplot(p4, aes(x = gender, y = mean_evaluation, fill = gender)) +
+  geom_rain() +
+  xlab("Gender") +
+  ylab("Self-reported evaluations") +
+  ggtitle("Self-reported evaluations by gender") +
+  scale_fill_brewer(palette = "Set2", name = "Gender") +
+  theme_classic()
+p6
+
+#histogram
+p7 <- ggplot(p4, aes(x = mean_evaluation)) +
+  geom_histogram(binwidth = 1,
+                 boundary = 0) +
+  xlab("Mean self-reported evaluations") +
+  ylab("Frequency") +
+  ggtitle("Self-reported evaluations by gender") +
+  scale_fill_brewer(palette = "Set2", name = "Gender") +
+  theme_classic() +
+  scale_x_continuous(breaks = pretty_breaks(n = 7)) +
+  coord_cartesian(xlim = c(1, 7)) +
+  theme(panel.grid.minor = element_blank()) +
+  facet_wrap(~gender, scales = "free")
+
+p7
 
 
 ```
@@ -356,7 +398,9 @@ cor.test(data_processed_after_exclusions$AMP_score, data_processed_after_exclusi
 
 ```{r}
 
+t_test_evaluation_by_gender <- t.test(mean_evaluation ~ gender, data = p4)
 
+t_test_evaluation_by_gender
 
 ```
 
@@ -370,7 +414,50 @@ This time, vary the labeling and order of the legend, e.g., capitalise "Men" and
 
 ```{r}
 
+library(ggplot2)
+library(introdataviz)
 
+p8 <- ggplot(p4, aes(x = gender, y = AMP_score, fill = gender)) +
+  geom_violin(color = "white", alpha = 0.8) +
+  xlab("Gender") +
+  ylab("Mean AMP-Score") +
+  ggtitle("Evaluations on the Affect Misattribution Procedure by gender") +
+  scale_fill_brewer(palette = "Set2", name = "Gender") +
+  scale_fill_manual(values = c("male" = "lightblue", "female" = "lightgreen"),
+                    name = "Gender",
+                    breaks = c("male", "female"),
+                    labels = c("MEN", "WOMEN")) +
+  theme_classic() 
+p8
+
+
+#raincloud plot
+p9 <- ggplot(p4, aes(x = gender, y = AMP_score, fill = gender)) +
+  geom_rain() +
+  xlab("Gender") +
+  ylab("Mean AMP-Score") +
+  ggtitle("Evaluations on the Affect Misattribution Procedure by gender") +
+  scale_fill_brewer(palette = "Set2", name = "Gender") +
+  scale_fill_manual(values = c("male" = "lightblue", "female" = "lightgreen"),
+                    name = "Gender",
+                    breaks = c("male", "female"),
+                    labels = c("MEN", "WOMEN")) +
+  theme_classic()
+p9
+
+#histogram
+p10 <- ggplot(p4, aes(x = AMP_score)) +
+  geom_histogram(binwidth = 0.05,
+                 boundary = 0) +
+  xlab("Mean AMP-Score") +
+  ylab("Frequency") +
+  ggtitle("Evaluations on the Affect Misattribution Procedure by Gender") +
+  scale_fill_brewer(palette = "Set2", name = "Gender") +
+  theme_classic() +
+  scale_x_continuous(breaks = pretty_breaks(n = 10)) +
+  facet_wrap(~gender, scales = "free")+
+  scale_fill_brewer(palette = "Set2", name = "Gender") 
+p10
 
 ```
 
@@ -379,7 +466,9 @@ This time, vary the labeling and order of the legend, e.g., capitalise "Men" and
 \TODO 
 
 ```{r}
+t_test_AMP_by_gender <- t.test(AMP_score ~ gender, data = p4)
 
+t_test_AMP_by_gender
 
 
 ```
@@ -391,8 +480,10 @@ Combine plots using patchwork: https://patchwork.data-imaginist.com/
 \TODO Combine at least three of the above plots into one.
 
 ```{r}
+library(patchwork)
 
-
+(p5|p6)/
+  p7
 
 ```
 
@@ -404,6 +495,12 @@ Save plots to disk with `ggsave()`
 
 ```{r}
 
+png_file <- "patchwork_plot.png"
+pdf_file <- "patchwork_plot.pdf"
+
+ggsave(png_file, (p5 | p6) / p7, dpi = 300)
+
+ggsave(pdf_file, (p5 | p6) / p7)
 
 
 ```
