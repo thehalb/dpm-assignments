@@ -336,6 +336,7 @@ p1 + geom_magnify(from = from, to = to)
 cor.test(data_processed_after_exclusions$AMP_score, data_processed_after_exclusions$mean_evaluation, method="spearman")
 
 ```
+To assess the relationship between the self-reported evaluations and evaluations on the AMP Spearman’s rank correlation was computed. There is no no significant correlation between self-reported evaluations and the AMP_scores (r(88) = -0.13, p = 0.231).
 
 ## Self-reported evalautions differ between men and women
 
@@ -350,7 +351,12 @@ library(ggplot2)
 library(ggridges)
 library(RColorBrewer)
 
-#violin plot
+```
+
+
+Violin plot
+
+```{r}
 
 p4 <- subset(data_processed_after_exclusions, gender %in% c("female", "male"))
 
@@ -363,7 +369,11 @@ p5 <- ggplot(p4, aes(x = gender, y = mean_evaluation, fill = gender)) +
   theme_classic()
 p5
 
-#raincloud plot
+```
+
+Raincloud plot
+
+```{r}
 p6 <- ggplot(p4, aes(x = gender, y = mean_evaluation, fill = gender)) +
   geom_rain() +
   xlab("Gender") +
@@ -373,7 +383,11 @@ p6 <- ggplot(p4, aes(x = gender, y = mean_evaluation, fill = gender)) +
   theme_classic()
 p6
 
-#histogram
+```
+
+Histogram
+
+```{r}
 p7 <- ggplot(p4, aes(x = mean_evaluation)) +
   geom_histogram(binwidth = 1,
                  boundary = 0) +
@@ -389,7 +403,6 @@ p7 <- ggplot(p4, aes(x = mean_evaluation)) +
 
 p7
 
-
 ```
 
 ### Test
@@ -398,11 +411,13 @@ p7
 
 ```{r}
 
-t_test_evaluation_by_gender <- t.test(mean_evaluation ~ gender, data = p4)
+t_test_evaluation_by_gender <- t.test(p4$mean_evaluation ~ p4$gender,var.equal = TRUE, alternative = "two.sided")
 
 t_test_evaluation_by_gender
 
 ```
+To assess if the self-reported evaluations differ between men and women a two-sample t-test was computet. The results show, that men (M= 1.81)had significantly higher values in the self-reported evaluations compared to women (M = 1.32), t(85) = -2.52, p = .014).
+
 
 ## Evaluations on the Affect Misattribution Procedure differ between men and women
 
@@ -416,7 +431,10 @@ This time, vary the labeling and order of the legend, e.g., capitalise "Men" and
 
 library(ggplot2)
 library(introdataviz)
+```
 
+Violin Plot
+```{r}
 p8 <- ggplot(p4, aes(x = gender, y = AMP_score, fill = gender)) +
   geom_violin(color = "white", alpha = 0.8) +
   xlab("Gender") +
@@ -429,9 +447,11 @@ p8 <- ggplot(p4, aes(x = gender, y = AMP_score, fill = gender)) +
                     labels = c("MEN", "WOMEN")) +
   theme_classic() 
 p8
+```
 
+Raincloud plot
 
-#raincloud plot
+```{r}
 p9 <- ggplot(p4, aes(x = gender, y = AMP_score, fill = gender)) +
   geom_rain() +
   xlab("Gender") +
@@ -444,8 +464,12 @@ p9 <- ggplot(p4, aes(x = gender, y = AMP_score, fill = gender)) +
                     labels = c("MEN", "WOMEN")) +
   theme_classic()
 p9
+```
 
-#histogram
+Histogram
+
+```{r}
+
 p10 <- ggplot(p4, aes(x = AMP_score)) +
   geom_histogram(binwidth = 0.05,
                  boundary = 0) +
@@ -466,12 +490,12 @@ p10
 \TODO 
 
 ```{r}
-t_test_AMP_by_gender <- t.test(AMP_score ~ gender, data = p4)
+
+t_test_AMP_by_gender <- t.test(p4$AMP_score ~ p4$gender,var.equal = TRUE, alternative = "two.sided")
 
 t_test_AMP_by_gender
-
-
 ```
+To assess if the AMP_scores differ between men and women a two-sample t-test was computed. The results show, that men (M= 0.58) and women (M = 0.58) do not differ in the AMP_scores(t(85) = 0.07, p = .941).
 
 ## Combining plots
 

@@ -229,9 +229,26 @@ write_csv(data_processed, "../data/processed/data_processed.csv")
 
 # Session info
 
+# Create codebook template for the processed data
+If it has not already been created, this code write the codebook template to disk.
+
+\TODO The template should then be filled in manually with descriptions of each variable so that someone else could understand what these variables represent.
+
 ```{r}
+install.packages("openxlsx")
+library(openxlsx)
+
+if(!file.exists("../data/processed/data_processed_codebook.xlsx")){
+  # convert the column names to a df
+  codebook_template <- data.frame(variable = colnames(data_processed)) |>
+    mutate(explanation = NA)
+  # write to disk as an excel file
+  write.xlsx(codebook_template, file = "../data/processed/data_processed_codebook.xlsx")
+}
 
 sessionInfo()
+
+```
 
 ```
 
