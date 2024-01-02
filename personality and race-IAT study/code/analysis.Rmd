@@ -1,0 +1,261 @@
+---
+title: "analysis"
+output: html_document
+date: "2023-11-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Dependencies
+
+```{r}
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(janitor)
+library(scales)
+library(psych)
+library(ggplot2)
+library(dplyr)
+library(ltm)
+library(report)
+library(cowplot)
+library(patchwork)
+```
+# Data
+
+```{r}
+data_processed <- read_csv("../data/processed/data_processed.csv")
+```
+
+# Sample size before exclusions
+
+Create a table with the total number of participants before exclusions.
+
+```{r}
+data_processed |>
+  count(name = "n") |>
+  kable() |>
+  add_header_above(header = c("Whole sample" = 1)) |> 
+  kable_classic(full_width = FALSE)
+```
+
+Exclude participants using the master exclusion variable.
+
+```{r}
+data_processed_after_exclusions <- data_processed |>
+  filter(exclude_participant == "include")
+```
+
+Create a table with the total number of participants after exclusions.
+
+```{r}
+data_processed_after_exclusions |>
+  count(name = "n") |>
+  kable() |>
+  add_header_above(header = c("For analysis" = 1)) |>
+  kable_classic(full_width = FALSE)
+```
+
+Create demographics tables that summarise the mean and SD age, and the frequency and percentage of men vs women in the sample. Report the proportion of participants for which each demographics variable was available.
+
+```{r}
+# Age
+data_processed_after_exclusions |>
+  mutate(age = as.numeric(age)) |>
+  summarise(Mean = mean(age, na.rm = TRUE),
+            SD = sd(age, na.rm = TRUE)) |>
+  mutate_all(.funs = janitor::round_half_up, digits = 1) |>
+  kable() %>%
+  add_header_above(header = c("Age" = 2)) |>
+  kable_classic(full_width = FALSE)
+
+# Gender
+data_processed_after_exclusions |> 
+  group_by(sex) |> 
+  summarise(n = n()) |> 
+  mutate(Percent = paste0(round_half_up((n / sum(n)) * 100, 1), "%")) |>
+  kable() |>
+  kable_classic(full_width = FALSE)
+
+# Calculate proportion for age
+availability_age <- 
+  (sum(!is.na(data_processed_after_exclusions$age) & data_processed_after_exclusions$age != "other/missing/error") / nrow(data_processed_after_exclusions)) |> 
+  round(2)
+
+print(paste0("Age was available for ", availability_age))
+      
+# Calculate proportion for gender
+availability_sex <- 
+  (sum(!is.na(data_processed_after_exclusions$sex) & data_processed_after_exclusions$sex %in% c("f", "m")) / nrow(data_processed_after_exclusions)) |> 
+  round(2)
+
+print(paste0("Gender was available for ", availability_sex))
+
+```
+
+Calculate Cronbach's alpha for each of the BFI subscales.
+
+```{r}
+# Define the items for each personality trait
+bfi_a_items <- c("bfi_a1", "bfi_a2", "bfi_a3", "bfi_a4", "bfi_a5", "bfi_a6", "bfi_a7", "bfi_a8", "bfi_a9")
+bfi_o_items <- c("bfi_o1", "bfi_o2", "bfi_o3", "bfi_o4", "bfi_o5", "bfi_o6", "bfi_o7", "bfi_o8", "bfi_o9", "bfi_o10")
+bfi_c_items <- c("bfi_c1", "bfi_c2", "bfi_c3", "bfi_c4", "bfi_c5", "bfi_c6", "bfi_c7", "bfi_c8", "bfi_c9")
+bfi_e_items <- c("bfi_e1", "bfi_e2", "bfi_e3", "bfi_e4", "bfi_e5", "bfi_e6", "bfi_e7", "bfi_e8")
+bfi_n_items <- c("bfi_n1", "bfi_n2", "bfi_n3", "bfi_n4", "bfi_n5", "bfi_n6", "bfi_n7", "bfi_n8")
+
+bfi_items_list <- list(bfi_a_items, bfi_o_items, bfi_c_items, bfi_e_items, bfi_n_items)
+
+# Function to calculate Cronbach's alpha for a given set of items
+calculate_alpha <- function(data, items) {
+  alpha_result <- alpha(data[, items, drop = FALSE], na.rm = TRUE, check.keys = TRUE)
+  return(alpha_result$alpha)
+}
+
+# Apply the function to each subscale
+alphas <- lapply(bfi_items_list, function(items) calculate_alpha(data_processed_after_exclusions, items))
+
+# Print the results
+print(alphas)
+
+```
+
+Create series of histograms of the distribution of scores on each of the BFI subscales and the IAT.
+
+```{r}
+h1 <- function(subscale, title) {
+  ggplot(data_processed_after_exclusions, aes(x = !!sym(subscale))) +
+    geom_histogram(binwidth = 1,
+                   boundary = 0.5,
+                   fill = "pink", 
+                   color = "black") +
+    xlab(paste("BFI Subscale", gsub("_", " ", subscale))) +
+    ylab("Frequency") +
+    ggtitle(paste("Distribution of Answers:", gsub("_", " ", toupper(subscale)))) +
+    theme_classic() +
+    scale_x_continuous(breaks = pretty_breaks(n = 7)) +
+    coord_cartesian(xlim = c(0, 8))
+}
+
+bfi_subscales <- c("bfi_a1", "bfi_a2", "bfi_a3", "bfi_o1", "bfi_e1", "bfi_a4", "bfi_a5", "bfi_a6", "bfi_a7", "bfi_a8", "bfi_a9", "bfi_o2", "bfi_o3", "bfi_o4", "bfi_o5", "bfi_o6", "bfi_o7", "bfi_o8", "bfi_o9", "bfi_o10", "bfi_c1", "bfi_c2", "bfi_c3", "bfi_c4", "bfi_c5", "bfi_c6", "bfi_c7", "bfi_c8", "bfi_c9", "bfi_e2", "bfi_e3", "bfi_e4", "bfi_e5", "bfi_e6", "bfi_e7", "bfi_e8", "bfi_n1", "bfi_n2", "bfi_n3", "bfi_n4", "bfi_n5", "bfi_n6", "bfi_n7", "bfi_n8")
+
+for (subscale in bfi_subscales) {
+  print(h1(subscale, paste("Subscale", gsub("_", " ", subscale))))
+}
+
+```
+
+```{r}
+h2 <- function(data, variable, title) {
+  ggplot(data = data, aes(x = .data[[variable]])) +
+    geom_histogram(binwidth = 0.05, fill = "pink", color = "black", alpha = 0.7) +
+    labs(title = "Distribution of IAT D-Scores", x = "D Score", y = "Frequency") +
+    theme_classic() +
+    scale_x_continuous(breaks = pretty_breaks(n = 10))
+}
+
+h2(data_processed_after_exclusions, "D_Score", "IAT D-Score")
+
+```
+
+Create a table with a correlation matrix of the Pearson's r correlations between the IAT and the BFI subscales rounded to two decimal places.
+
+```{r}
+data_correlation_matrix <- data_processed_after_exclusions |>
+  dplyr::select(starts_with("bfi_"), D_Score)
+
+cor_matrix <- cor(data_correlation_matrix, use = "pairwise.complete.obs")
+
+cor_matrix_rounded <- round(cor_matrix, 2)
+print(cor_matrix_rounded)
+```
+
+Run a t-test to test the hypothesis that men and women differ on their scores on the IAT. Report and interpret the results using {report}.
+
+```{r}
+scores_men <- data_processed_after_exclusions$D_Score[data_processed_after_exclusions$sex == "m"]
+scores_women <- data_processed_after_exclusions$D_Score[data_processed_after_exclusions$sex == "f"]
+
+# Perform the t-test
+t_test_result <- report(t.test(scores_men, scores_women, alternative = "two.sided"))
+
+# Print the t-test result
+t_test_result
+
+```
+
+Run a series of regressions to test the hypotheses that each BFI subscale predicts IAT scores. Run separate regressions for each subscale rather than a multiple regression. Report and interpret the results using {report}.
+
+```{r}
+bfi_subscale_names <- c("bfi_a1", "bfi_a2", "bfi_a3", "bfi_a4", "bfi_a5", 
+                         "bfi_a6", "bfi_a7", "bfi_a8", "bfi_a9", 
+                         "bfi_c1", "bfi_c2", "bfi_c3", "bfi_c4", "bfi_c5", 
+                         "bfi_c6", "bfi_c7", "bfi_c8", "bfi_c9", 
+                         "bfi_e1", "bfi_e2", "bfi_e3", "bfi_e4", "bfi_e5", 
+                         "bfi_e6", "bfi_e7", "bfi_e8", 
+                         "bfi_n1", "bfi_n2", "bfi_n3", "bfi_n4", "bfi_n5", 
+                         "bfi_n6", "bfi_n7", "bfi_n8", 
+                         "bfi_o1", "bfi_o2", "bfi_o3", "bfi_o4", "bfi_o5", 
+                         "bfi_o6", "bfi_o7", "bfi_o8", "bfi_o9", "bfi_o10")
+
+for (subscale in bfi_subscale_names) {
+  formula <- as.formula(paste("D_Score ~", subscale))
+  regression_model <- report(lm(formula, data = data_processed_after_exclusions))
+  cat("Regression for", subscale, "\n")
+  print(summary(regression_model))
+  cat("\n")
+}
+```
+
+Create series of scatter plots of how BFI subscale scores predict IAT scores. Add regression lines. These plots therefore illustrate the same results as the regressions above. Make the plots presentable and publication quality- you may decide the details of this with one exception: Extreme scores on the IAT (defined as participants whose scores in the top and bottom 10% of IAT scores) should use a triangular shape rather than a dot. A single combined plot should be created, containing 5 component plots, with the personality facet being examined in each clearly labelled. This plot should be printed in the html file but also saved to disk as both png/pdf. 
+```{r}
+# Calculate IAT score cutoffs
+iat_score_cutoff_top <- quantile(data_processed_after_exclusions$D_Score, 0.9, na.rm = TRUE)
+iat_score_cutoff_bottom <- quantile(data_processed_after_exclusions$D_Score, 0.1, na.rm = TRUE)
+
+# Create a column indicating extreme or normal IAT scores
+data_processed_after_exclusions <- data_processed_after_exclusions %>%
+  mutate(extreme_iat = ifelse(D_Score >= iat_score_cutoff_top | D_Score <= iat_score_cutoff_bottom,
+                              "extreme",
+                              "normal"))
+
+# Function to create scatter plot
+function_scatter_plot_bfi <- function(column, name_subscale) {
+  ggplot(data_processed_after_exclusions, aes(x = get(column), y = D_Score)) + 
+    geom_point(aes(shape = extreme_iat), alpha = 0.7) +
+    scale_shape_manual(values = c(extreme = 17, normal = 16)) +
+    geom_smooth(method = "lm") +
+    ggtitle(name_subscale) +
+    xlab(paste0("Mean ", name_subscale)) +
+    ylab("D-Score") +
+    theme_classic() +
+    theme(legend.position = "none") 
+}
+
+agreeableness_plot <- function_scatter_plot_bfi("mean_bfi_a", "Agreeableness")
+conscientiousness_plot <- function_scatter_plot_bfi("mean_bfi_c", "Conscientiousness")
+extraversion_plot <- function_scatter_plot_bfi("mean_bfi_e", "Extraversion")
+neuroticism_plot <- function_scatter_plot_bfi("mean_bfi_n", "Neuroticism")
+openness_plot <- function_scatter_plot_bfi("mean_bfi_o", "Openness")
+
+print(agreeableness_plot)
+print(conscientiousness_plot)
+print(extraversion_plot)
+print(neuroticism_plot)
+print(openness_plot)
+
+```
+
+Combine these scatter plots into one ggplot object using {patchwork} and print the combined plot in your .Rmd and .html. Save the combined plot to disk as a .pdf and .png in the "communications" folder.
+
+```{r}
+combining_bfi_plots <- agreeableness_plot + conscientiousness_plot + extraversion_plot + neuroticism_plot + openness_plot
+print(combining_bfi_plots)
+
+ggsave("../communications/combined_plot.png", combining_bfi_plots, width = 18, height = 12, units = "cm")
+ggsave("../communications/combined_plot.pdf", combining_bfi_plots, width = 18, height = 12, units = "cm")
+
+```
+
