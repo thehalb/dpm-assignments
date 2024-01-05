@@ -1,7 +1,15 @@
 ---
-title: "analysis"
-output: html_document
-date: "2023-11-27"
+title: "Evaluations of BFI Subscales and IAT"
+subtitle: "analysis"
+author: "Theresa Halbritter"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -75,7 +83,7 @@ data_processed_after_exclusions |>
   summarise(Mean = mean(age, na.rm = TRUE),
             SD = sd(age, na.rm = TRUE)) |>
   mutate_all(.funs = janitor::round_half_up, digits = 1) |>
-  kable() %>%
+  kable() |>
   add_header_above(header = c("Age" = 2)) |>
   kable_classic(full_width = FALSE)
 ```
@@ -94,7 +102,6 @@ data_processed_after_exclusions |>
 ### Proportion available for Age
 
 ```{r}
-
 availability_age <- 
   (sum(!is.na(data_processed_after_exclusions$age) & data_processed_after_exclusions$age != "other/missing/error") / nrow(data_processed_after_exclusions)) |> 
   round(2)
@@ -119,33 +126,48 @@ print(paste0("Gender was available for ", availability_sex))
 Calculate Cronbach's alpha for each of the BFI subscales.
 
 ```{r}
-# Function to calculate Cronbach's alpha for a subscale
+# Function
 calculate_alpha_subscale <- function(data, subscale, n) {
-  items_subscale <- function_items_subscale_bfi(subscale, n)
-  alpha_result <- psych::alpha(data[, items_subscale, drop = FALSE], na.rm = TRUE, check.keys = TRUE)
-  return(alpha_result$total.alpha)
+  items_subscale <- paste0("bfi_", subscale, 1:n)
+  
+  subscale_data <- data[, items_subscale, drop = FALSE]
+  
+  # Remove NA´s
+  subscale_data <- na.omit(subscale_data)
+  
+  # Check if enough data is available after removing NAs
+  if (nrow(subscale_data) < 3) {
+    warning("Nicht genügend Daten für die Berechnung von Cronbach's Alpha.")
+    return(NA)
+  }
+  
+  # Calculating Cronbach's Alpha
+  alpha_result <- psych::alpha(subscale_data)
+  alpha_value <- alpha_result$total
+  return(alpha_value)
 }
 
-# Function to get all columns of one subscale in a vector
-function_items_subscale_bfi <- function(subscale, n) {
-  items_subscale_bfi <- paste0("bfi_", subscale, 1:n)
-}
-
-# Calculate alpha for each subscale
+# Calculating Chronbachs Alpha for each subscale
 alpha_agreeableness <- calculate_alpha_subscale(data_processed_after_exclusions, "a", 9)
 alpha_conscientiousness <- calculate_alpha_subscale(data_processed_after_exclusions, "c", 9)
 alpha_extraversion <- calculate_alpha_subscale(data_processed_after_exclusions, "e", 8)
 alpha_neuroticism <- calculate_alpha_subscale(data_processed_after_exclusions, "n", 8)
 alpha_openness <- calculate_alpha_subscale(data_processed_after_exclusions, "o", 10)
 
-# Print the results
-print(paste("Alpha for Agreeableness:", alpha_agreeableness))
-print(paste("Alpha for Conscientiousness:", alpha_conscientiousness))
-print(paste("Alpha for Extraversion:", alpha_extraversion))
-print(paste("Alpha for Neuroticism:", alpha_neuroticism))
-print(paste("Alpha for Openness:", alpha_openness))
+# show results
+alpha_agreeableness
+alpha_conscientiousness
+alpha_extraversion
+alpha_neuroticism
+alpha_openness
 
 ```
+Results for Cronbach´s Alpha: 
+- agreeableness: 0.78
+- conscientiousness:0.81
+- extraversion: 0.82
+- neuroticism:0.78
+- openness: 0.81
 
 ### Histogram distribution of the BFI subscales
 
@@ -154,16 +176,16 @@ Create series of histograms of the distribution of scores on each of the BFI sub
 ```{r}
 h1 <- function(data, subscale, title, xlab) {
   ggplot(data, aes(x = !!sym(subscale))) +
-    geom_histogram(binwidth = 1,
-                   boundary = 0.5,
+    geom_histogram(binwidth = 0.1,
+                   boundary = 0,
                    fill = "pink", 
                    color = "black") +
     xlab(xlab) +
     ylab("Frequency") +
     ggtitle(title) +
     theme_classic() +
-    scale_x_continuous(breaks = pretty_breaks(n = 7)) +
-    coord_cartesian(xlim = c(0, 7))
+    scale_x_continuous(breaks = pretty_breaks(n = 9)) +
+    coord_cartesian(xlim = c(1, 6))
 }
 
 bfi_subscales <- c("mean_bfi_a", "mean_bfi_o", "mean_bfi_c", "mean_bfi_e", "mean_bfi_n")
@@ -181,7 +203,7 @@ for (i in seq_along(bfi_subscales)) {
 ```{r}
 h2 <- function(data, variable, title) {
   ggplot(data = data, aes(x = .data[[variable]])) +
-    geom_histogram(binwidth = 0.05, fill = "pink", color = "black", alpha = 0.7) +
+    geom_histogram(binwidth = 0.05, fill = "pink", color = "black", alpha = 0.5) +
     labs(title = "Distribution of IAT D-Scores", x = "D Score", y = "Frequency") +
     theme_classic() +
     scale_x_continuous(breaks = pretty_breaks(n = 10))
@@ -241,7 +263,7 @@ iat_score_cutoff_top <- quantile(data_processed_after_exclusions$D_Score, 0.9, n
 iat_score_cutoff_bottom <- quantile(data_processed_after_exclusions$D_Score, 0.1, na.rm = TRUE)
 
 # Create a column indicating extreme or normal IAT scores
-data_processed_after_exclusions <- data_processed_after_exclusions %>%
+data_processed_after_exclusions <- data_processed_after_exclusions |>
   mutate(extreme_iat = ifelse(D_Score >= iat_score_cutoff_top | D_Score <= iat_score_cutoff_bottom,
                               "extreme",
                               "normal"))

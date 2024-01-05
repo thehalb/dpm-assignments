@@ -1,0 +1,194 @@
+---
+title: "Plot assignment"
+author: "Theresa Halbritter"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+```{r, include=FALSE}
+
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE)
+
+```
+
+# Dependencies
+
+```{r}
+
+library(tidyverse)
+
+data_processed <- read_csv("data_processed.csv")
+
+```
+
+# Instructions
+
+The goal of this exercise is to produce both good and bad examples of plots *and to be explicit about what makes them good or bad*. 
+
+The data can be real or fabricated. The plots can convey realistic or silly messages - but they must convey them clearly. You can get real data from many sources. A good one is the open science framekwork (osf.io). You can also simply make up data, either by hand or using simulation functions (e.g., `rnorm`) or the many simulation packages. If simulating data, ensure that you (a) use set.seed() to make it reproudbile, and (b) save a copy of the final data that you're using to disk and then reload it in the script so that the plot is reproducible.
+
+The goal is neither to reproduce the types of plots that you most often see in journals (bar plots, etc.) nor to use a very fancy looking plot just for the sake of it - if it is very unlikely that you'd ever be able to use the plot to convey a research finding in an article, blog, poster, tweet, infographic or otherwise, it's probably not a good choice either.
+
+The plots must be reproducible. Provide the data as well as the code to reporduce them. The plots should also be saved as individual images (pdf or png).
+
+Under each plot, here in the RMarkdown, briefly explain what types of analysis the plot is suitable for, what elements of the results the plot attempts to clearly convey. For the bad plot, do the opposite: emphasise what features of the results the plot obscures or makes unclear. In doing so, communicate to me that you understand what makes a good plot to convey the results of quantiative analyses to viewers.
+
+Consider making use of the many extensions to ggplot2, e.g.:
+
+- https://r-graph-gallery.com
+- https://krzjoa.github.io/awesome-r-dataviz/#/
+- ggdist https://mjskay.github.io/ggdist/
+- ggrepel
+- ggpubr
+- see
+- ggsignif
+- and others: https://exts.ggplot2.tidyverse.org/gallery/
+
+#Dependencies
+
+```{r}
+library(ggplot2)
+library(ggdist)
+library(wesanderson)
+library(tidyr)
+library(extrafont)
+library(ggdark)
+```
+
+# Good plot
+
+```{r}
+subscale_names <- c("a", "c", "e", "o", "n")
+
+# Melt die Daten für den Raincloud-ähnlichen Plot
+melted_data <- reshape2::melt(data_processed, id.vars = NULL, measure.vars = paste0("mean_bfi_", subscale_names))
+
+# Loading of color palette from the wesanderson package
+palettes <- wes_palette("Royal2", n = 5)
+
+pretty_plot <- ggplot(melted_data, aes(x = variable, y = value, fill = variable)) + 
+  stat_halfeye(
+    adjust = 0.5, 
+    width = 0.6, 
+    .width = 0, 
+    justification = -0.3, 
+    point_colour = NA,
+    aes(color = variable)  # Color of raincloudplots
+  ) + 
+  geom_boxplot(
+    width = 0.25, 
+    outlier.shape = 2,
+    color = "black",  # Color for border of the boxplots
+    fill = NA,  # Colors for the filling of the boxplots -> empty
+  ) +
+  geom_point(
+    size = 1.5,             # Size of the points
+    alpha = 0.8,            # transparency of the points
+    position = position_jitter(
+      seed = 1, width = 0.1
+    ),
+    aes(color = variable)   # color of the points
+  ) + 
+  scale_color_manual(values = palettes[1:6]) +  # Adjust colors for points and lines
+  scale_fill_manual(values = palettes[1:6]) + 
+  scale_x_discrete( 
+    breaks = c("mean_bfi_a", "mean_bfi_c", "mean_bfi_e", "mean_bfi_o", "mean_bfi_n"), # change variable names
+    labels = c("mean_bfi_a" = "Agreeableness", 
+               "mean_bfi_c" = "Conscientiousness", 
+               "mean_bfi_e" = "Extraversion", 
+               "mean_bfi_o" = "Openness", 
+               "mean_bfi_n" = "Neuroticism")
+  ) +
+  theme_classic() + # add theme 
+  # ass title, subtitle and labels for axis
+  labs(title = "Distribution of the mean values of the Big Five Inventory (BFI)",
+       subtitle = "for the Subscales Agreeableness, Conscientiousness, Extraversion, Openness, Neuroticism",
+       x = "Subscales of the BFI", y = "Mean") +
+  theme(legend.position = "none")  # remove legend
+
+pretty_plot
+
+```
+*Brief Explanation:
+
+*The series of plots illustrates the distribution of mean values for different personality traits measured by the Big Five Inventory (BFI). Each plot represents a subscale (Agreeableness, Conscientiousness, Extraversion, Openness, Neuroticism) using raincloud plots, boxplots, and points. These visualizations provide insights into the central tendency, spread, and potential outliers for each personality trait, aiding in a comprehensive understanding of the dataset.
+
+*Raincloud charts are versatile visualizations that combine elements such as boxplots and kernel density plots to show the distribution, central tendency and dispersion of data. They are useful for comparing groups, identifying outliers and visualizing uncertainties or deviations in the data. The charts provide a comprehensive overview and are therefore well suited for exploring and communicating complex patterns in data sets.
+
+*A good plot presents the data in a way that is easy to understand. The axes and headline clearly explain what is being presented. The colors are well chosen so that you enjoy looking at the graph: in this case, I chose a color palette from Wes Anderson that has well-matched colors and is not too bright. The points are more transparent than the color of the Raincloud plot and are therefore not too distracting. The Boxplots are in black to make them stand out from the points. Outliers have a different shape and color (triangle).
+
+# Bad plot
+
+```{r}
+
+# Create a bar plot with Comic Sans font
+bad_plot <- ggplot(melted_data, aes(x = variable, y = value, fill = variable)) +
+  geom_bar(stat = "identity", color = "red") +  # Set the border color to red
+  xlab("Variable") +
+  ylab("Value") +
+  dark_theme_gray() +  # Add theme
+  scale_fill_manual(values = rep("red", 5))  # Set fill color to red for all categories
+
+# Print the bar plot
+bad_plot
+
+```
+*Brief Explanation:
+*Histograms are less suitable if you want to look at the distribution of means, as the means are usually less variable than the raw data itself. With sufficiently large samples and under the assumption of normally distributed data, the mean values approach a normal distribution.
+*If you want to look at the distribution of mean values, alternative visualizations such as boxplots, violin plots or raincloud plots are often more informative. These can clearly show important statistics such as the median, quartiles and potential outliers and are better suited to show the characteristics of the mean distribution.
+*This histogram is also not attractive for these reasons: it lacks a heading and the axis labels are meaningless. The variables were not renamed, underlines in variable labels are not very nice. Color was used, but it is bright red and does not help to distinguish the variables, one could think that it is continuous data. The black theme makes the optics even worse, because the red does not stand out nicely.
+*the legend should also have been removed, as it adds nothing new to the graph.
+
+
+# Write to disk
+
+Write to disk as a .pdf or .png.
+
+Name them "plot_good_[yourname]" and "plot_bad_[yourname]".
+
+## Save Bad Plot
+
+```{r}
+
+plot_bad_theresa_halbritter_pdf <- "plot_bad_halbritter.pdf"
+plot_bad_theresa_halbritter_png <- "plot_bad_halbritter.png"
+
+# Save as PDF
+ggsave(plot_bad_theresa_halbritter_pdf, plot = bad_plot, width = 8, height = 6)
+
+# Save as PNG
+ggsave(plot_bad_theresa_halbritter_png, plot = bad_plot, width = 8, height = 6, dpi = 300)
+
+```
+
+## Save Good Plot
+
+```{r}
+
+plot_good_theresa_halbritter_pdf <- "plot_good_halbritter.pdf"
+plot_good_theresa_halbritter_png <- "plot_good_halbritter.png"
+
+# Save as PDF
+ggsave(plot_good_theresa_halbritter_pdf, plot = pretty_plot, width = 8, height = 6)
+
+# Save as PNG
+ggsave(plot_good_theresa_halbritter_png, plot = pretty_plot, width = 8, height = 6, dpi = 300)
+
+```
+
+# Session info
+
+```{r}
+
+sessionInfo()
+
+```
+
+
