@@ -26,6 +26,9 @@ library(tidyverse)
 
 data_processed <- read_csv("data_processed.csv")
 
+data_processed_after_exclusions <- data_processed |>
+  filter(exclude_participant == "include" & !is.na(exclude_participant))
+
 ```
 
 # Instructions
@@ -67,8 +70,8 @@ library(ggdark)
 ```{r}
 subscale_names <- c("a", "c", "e", "o", "n")
 
-# Melt die Daten für den Raincloud-ähnlichen Plot
-melted_data <- reshape2::melt(data_processed, id.vars = NULL, measure.vars = paste0("mean_bfi_", subscale_names))
+# Melt Data
+melted_data <- reshape2::melt(data_processed_after_exclusions, id.vars = NULL, measure.vars = paste0("mean_bfi_", subscale_names))
 
 # Loading of color palette from the wesanderson package
 palettes <- wes_palette("Royal2", n = 5)
@@ -83,7 +86,7 @@ pretty_plot <- ggplot(melted_data, aes(x = variable, y = value, fill = variable)
     aes(color = variable)  # Color of raincloudplots
   ) + 
   geom_boxplot(
-    width = 0.25, 
+    width = 0.15, 
     outlier.shape = 2,
     color = "black",  # Color for border of the boxplots
     fill = NA,  # Colors for the filling of the boxplots -> empty
@@ -128,7 +131,7 @@ pretty_plot
 
 ```{r}
 
-# Create a bar plot with Comic Sans font
+# Create a bar plot
 bad_plot <- ggplot(melted_data, aes(x = variable, y = value, fill = variable)) +
   geom_bar(stat = "identity", color = "red") +  # Set the border color to red
   xlab("Variable") +
@@ -141,9 +144,13 @@ bad_plot
 
 ```
 *Brief Explanation:
+
 *Histograms are less suitable if you want to look at the distribution of means, as the means are usually less variable than the raw data itself. With sufficiently large samples and under the assumption of normally distributed data, the mean values approach a normal distribution.
+
 *If you want to look at the distribution of mean values, alternative visualizations such as boxplots, violin plots or raincloud plots are often more informative. These can clearly show important statistics such as the median, quartiles and potential outliers and are better suited to show the characteristics of the mean distribution.
+
 *This histogram is also not attractive for these reasons: it lacks a heading and the axis labels are meaningless. The variables were not renamed, underlines in variable labels are not very nice. Color was used, but it is bright red and does not help to distinguish the variables, one could think that it is continuous data. The black theme makes the optics even worse, because the red does not stand out nicely.
+
 *the legend should also have been removed, as it adds nothing new to the graph.
 
 

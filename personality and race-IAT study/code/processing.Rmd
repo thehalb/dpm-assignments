@@ -10,6 +10,7 @@ output:
     theme: flatly
     toc: yes
     toc_float: yes
+
 ---
 ```{r, include=FALSE}
 
@@ -20,17 +21,20 @@ knitr::opts_chunk$set(message = FALSE,
 # Dependencies
 
 ```{r}
+
 library(dplyr)
 library(tidyr)
 library(janitor)
 library(stringr)
 library(readr)
 library(openxlsx)
+
 ```
 
 # Get data
 
 ```{r}
+
 data_raw_bfi <- read_csv("../data/raw/data_raw_bfi.csv") |>
   janitor::clean_names() 
 
@@ -39,6 +43,7 @@ data_raw_iat <- read_csv("../data/raw/data_raw_iat.csv", skip = 1) |>
 
 data_raw_demographics <- read_csv("../data/raw/data_raw_demographics.csv") |>
   janitor::clean_names()
+
 ```
 
 # Demographics
@@ -46,11 +51,12 @@ data_raw_demographics <- read_csv("../data/raw/data_raw_demographics.csv") |>
 Extract age and gender from the raw demographics data.
 
 ```{r}
-#remove rows with missing unique_id
+
+# remove rows with missing unique_id
 data_demographics_without_missing_id <- data_raw_demographics |> 
   filter(!is.na(unique_id))
 
-#transform demographics into wide format and check if sex has only "f" and "m" as answers and if age is a number
+# transform demographics into wide format and check if sex has only "f" and "m" as answers and if age is a number
 dat_age_gender <- data_demographics_without_missing_id |>
   pivot_wider(names_from = variable,
               values_from = response) |>
@@ -58,6 +64,7 @@ dat_age_gender <- data_demographics_without_missing_id |>
                          TRUE ~ "missing/other/error"),
          age = case_when(str_detect(age, "^[0-9]+$") ~ age, 
                          TRUE ~ "other/missing/error"))
+
 ```
 
 # Exclusions / data quality
@@ -126,11 +133,14 @@ names(correlation_results) <- paste0("bfi_", traits)
 
 ```
 
+*All correlations except bfi_07 with bfi_o10 are positive.
+
 ### Logical checks of minimum and maximum 
 
 Check that the item level data does not violate the logical minimum and maximum scores (1 to 6). Create an exclusion variable and set participants with impossible data to "exclude". 
 
 ```{r}
+
 exclude_bfi_min_max <- data_bfi_reversed_scores |>
   rowwise() |>
   mutate(exclude_impossible_data = ifelse(any(c_across(starts_with("bfi_")) < 1 | c_across(starts_with("bfi_")) > 6, na.rm = TRUE), "exclude", "include")) |>
@@ -167,6 +177,7 @@ exclude_incomplete_subscales <- data_bfi_reversed_scores |>
 Mean-score the subscales of the BFI scale. Each participant only got either 2 or 3 subscales. 
 
 ```{r}
+
 data_bfi_reversed_scores$mean_bfi_a <- rowMeans(dplyr::select(data_bfi_reversed_scores,starts_with("bfi_a")),
                                              na.rm = TRUE)
 data_bfi_reversed_scores$mean_bfi_o <- rowMeans(dplyr::select(data_bfi_reversed_scores,starts_with("bfi_o")),
@@ -184,6 +195,7 @@ data_bfi_reversed_scores$mean_bfi_n <- rowMeans(dplyr::select(data_bfi_reversed_
 Check that the mean scores do not violate the min and max possible score (i.e., first determine this min and max score), and revise your scoring code if it does. 
 
 ```{r}
+
 # min and max possible score is 1 and 6
 out_of_range_counts <- data_bfi_reversed_scores |>
   rowwise() |>
@@ -196,6 +208,7 @@ if (any(out_of_range_counts > 0)) {
 } else {
   print("All mean scores are within the valid range.")
 }
+
 ```
 
 ## IAT
@@ -205,6 +218,7 @@ if (any(out_of_range_counts > 0)) {
 Score the trial-level IAT data using the Greenwald "D" score: Calculate a mean RT ("mean1") for blocks 3 and 6 (one score using trials from both blocks), a mean RT ("mean2") for blocks 4 and 7 (one score using trials from both blocks), and the SD of RTs in blocks 3, 4, 6 and 7 ("SD"). To calculate D: D = (mean2 - mean1)/SD. Blocks 1, 2, and 5 are practice blocks and must be discarded. 
 
 ```{r}
+
 # Exclude blocks other than 3, 4, 6 and 7
 iat_without_trials <- data_raw_iat[data_raw_iat$block_number %in% c(3, 4, 6, 7), ]
 
@@ -235,6 +249,7 @@ data_frame_D_score <- iat_without_trials_grouped_mean |>
   dplyr::select(unique_id, D_Score)
 
 print(data_frame_D_score)
+
 ```
 
 ### Sanity check for D-Score
@@ -242,11 +257,13 @@ print(data_frame_D_score)
 Check that all D scores are in the range -2 to +2. If not, revise your implementation of the scoring code. 
 
 ```{r}
+
 if(all(data_frame_D_score$D_Score >= -2 & data_frame_D_score$D_Score <= 2)) {
   print("Sanity check passed: All D scores are in the range -2 to +2.")
 } else {
   print("Sanity check failed: Revise your implementation of the scoring code.")
 }
+
 ```
 
 ## Exclusion variable
@@ -256,10 +273,12 @@ if(all(data_frame_D_score$D_Score >= -2 & data_frame_D_score$D_Score <= 2)) {
 Create an exclusion variable and set participants with incomplete trial level IAT data to "exclude". Specifically, IAT should have 120 trials on the critical test blocks (i.e., blocks 3, 4, 6 and 7). Trials on the other (practice) blocks can be discarded.
 
 ```{r}
-data_iat_incomplete_trial_level <- iat_without_trials |>
-  group_by(unique_id) |>
-  mutate(exclude_iat_incomplete = ifelse(!(all(c(3, 4, 6, 7) %in% block_number) & n() == 120), "exclude", "include")) |>
-  dplyr::select(unique_id, exclude_iat_incomplete)
+
+data_iat_incomplete_trial_level <- iat_without_trials |> 
+  group_by(unique_id) |> 
+  filter(all(c(3, 4, 6, 7) %in% block_number) & n() != 120) |> 
+  pull(unique_id) |> 
+  unique()
 
 ```
 
@@ -268,6 +287,7 @@ data_iat_incomplete_trial_level <- iat_without_trials |>
 Create an exclusion variable for IAT performance: set participants with >10% of the participants trials are < 300ms, or if their accuracy is < than 75%. Only use trials from the critical test blocks when computing these (i.e., blocks 3, 4, 6 and 7).
 
 ```{r}
+
 exclude_iat_performance <- iat_without_trials |>
   group_by(unique_id) |>
   summarise(
@@ -286,12 +306,12 @@ participants_to_exclude_low_accuracy <- exclude_iat_performance$unique_id[
 
 # Identify participants to exclude based on short reaction times
 participants_to_exclude_short_rt <- exclude_iat_performance$unique_id[
-  exclude_iat_performance$trials_below_threshold > 0.1 * exclude_iat_performance$total_trials &
+  exclude_iat_performance$trials_below_threshold > 0.10 * exclude_iat_performance$total_trials &
   exclude_iat_performance$unique_id %in% unique_ids_in_data_D_score
 ]
 
 iat_exclusion <- c(
-  data_iat_incomplete_trial_level$exclude_iat_incomplete,
+  data_iat_incomplete_trial_level,
   participants_to_exclude_short_rt,
   participants_to_exclude_low_accuracy
 )
@@ -300,7 +320,6 @@ iat_exclusion <- c(
 data_iat_D_exclusions <- data_frame_D_score |>
   mutate(exclude_iat = case_when(unique_id %in% iat_exclusion ~ "exclude", TRUE ~ "include"))
 
-head(data_iat_D_exclusions)
 ```
 
 ## Combine datasets
@@ -308,8 +327,9 @@ head(data_iat_D_exclusions)
 Combine the demographics, BFI, and IAT data into one data frame. This data frame should be one-row-one-participant. Both the mean scored and item level BFI data should be present in the dataset.
 
 ```{r}
+
 data_processed_before_exclusions <-  data_bfi_reversed_scores|>
-  left_join(dat_age_gender, by = "unique_id") |>
+  full_join(dat_age_gender, by = "unique_id") |>
   full_join(data_iat_D_exclusions, by = "unique_id") |>
   full_join(exclude_bfi_min_max, by = "unique_id") |>
   full_join(exclude_incomplete_subscales, by = "unique_id") 
@@ -321,13 +341,17 @@ data_processed_before_exclusions <-  data_bfi_reversed_scores|>
 Create a master exclude variable from the individual exclude variables. 
 
 ```{r}
+
 # Creates master exclude variable "exclude_participant" 
-data_processed <- data_processed_before_exclusions |>
+data_processed <- data_processed_before_exclusions  %>%
   mutate(
-    exclude_participant = case_when(exclude_iat == "exclude" ~ "exclude",
-                                    exclude_impossible_data == "exclude" ~ "exclude",
-                                    exclude_incomplete_data == "exclude" ~ "exclude",
-                                    TRUE ~ "include")) 
+    exclude_participant = case_when(
+      is.na(exclude_iat) | exclude_iat == "exclude" ~ "exclude",
+      is.na(exclude_impossible_data) | exclude_impossible_data == "exclude" ~ "exclude",
+      is.na(exclude_incomplete_data) | exclude_incomplete_data == "exclude" ~ "exclude",
+      TRUE ~ "include"
+    )
+  )
 
 ```
 
@@ -336,11 +360,13 @@ data_processed <- data_processed_before_exclusions |>
 Save the processed data to the data/processed/ folder as "data_processed.csv". 
 
 ```{r}
+
 # in case this dir doesn't exist, create it
 dir.create("../data/processed/")
 
 # save data to disk in that dir
 write_csv(data_processed, "../data/processed/data_processed.csv")
+
 ```
 
 # Create codebook template for the processed data
@@ -348,6 +374,7 @@ write_csv(data_processed, "../data/processed/data_processed.csv")
 Create a codebook for the processed data file that explains what each variable represents.
 
 ```{r}
+
 if(!file.exists("../data/processed/data_processed_codebook.xlsx")){
   # convert the column names to a df
   codebook_template <- data.frame(variable = colnames(data_processed)) |>
@@ -355,11 +382,13 @@ if(!file.exists("../data/processed/data_processed_codebook.xlsx")){
   # write to disk as an excel file
   write.xlsx(codebook_template, file = "../data/processed/data_processed_codebook.xlsx")
 }
+
 ```
 
 # Session info
 
 ```{r}
+
 sessionInfo()
 
 ```
